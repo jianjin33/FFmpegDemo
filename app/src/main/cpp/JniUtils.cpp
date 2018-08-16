@@ -4,6 +4,7 @@
 #include <jni.h>
 #include <string>
 #include "JniUtils.h"
+#include "../../../../../../AppData/Local/Android/Sdk/ndk-bundle/sysroot/usr/include/malloc.h"
 
 
 /**

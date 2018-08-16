@@ -9,7 +9,10 @@
 #include <errno.h>
 #include <cstring>
 #include <android/log.h>
-
+#include <string>
+#include <reader.h>
+#include "JniUtils.h"
+#include "web_task.h"
 /* Header for class com_jianjin33_ffmpeg_Request */
 
 #ifndef _Included_com_jianjin33_ffmpeg_Request
@@ -25,10 +28,46 @@ extern "C" {
 #define TAG "Native_request"
 #define LOG_D(...) __android_log_print(ANDROID_LOG_DEBUG,TAG ,__VA_ARGS__)
 
-JNIEXPORT jstring JNICALL Java_com_jianjin33_ffmpeg_Request_requestTest
-        (JNIEnv *, jobject);
+using namespace std;
 
-static int32_t onInputEvent(struct android_app *app) {
+JNIEXPORT jstring JNICALL Java_com_jianjin33_ffmpeg_Request_requestTest
+        (JNIEnv *env, jobject){
+    //GET请求
+    string url = "http://www.weather.com.cn/data/sk/101280601.html";
+    WebTask task;
+    task.SetUrl(url.c_str());
+    task.SetConnectTimeout(5);
+    task.DoGetString();
+    if (task.WaitTaskDone() == 0) {
+        //请求服务器成功
+        string jsonResult = task.GetResultString();
+        LOG_D("返回的json数据是：%s\n", jsonResult.c_str());
+        Json::Reader reader;
+        Json::Value root;
+
+//从字符串中读取数据
+        if (reader.parse(jsonResult, root)) {
+            /*//根节点
+            Json::Value weatherinfo = root["weatherinfo"];
+            string js1 = weatherinfo["city"].asString();
+            LOGI("根节点解析: %s\n", js1.c_str());*/
+            //读取子节点信息
+            string city = root["weatherinfo"]["city"].asString();
+            string temp = root["weatherinfo"]["temp"].asString();
+            string WD = root["weatherinfo"]["WD"].asString();
+            string WS = root["weatherinfo"]["WS"].asString();
+            string time = root["weatherinfo"]["time"].asString();
+            string result = "城市：" + city + "\n温度："+ temp+ "\n风向：" + WD + "\n风力："+ WS + "\n时间：" + time;
+            return Str2Jstring(env, result.c_str());
+        }
+    } else {
+        LOG_D("网络连接失败\n");
+        return env->NewStringUTF("网络连接失败！");
+    }
+
+}
+
+/*static int32_t onInputEvent(struct android_app *app) {
     int sockClient = socket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr_in sockAddr = {0};
@@ -41,7 +80,7 @@ static int32_t onInputEvent(struct android_app *app) {
     char szMsg[1024] = "haha";
     nRet = send(sockClient, szMsg, strlen(szMsg), 0);
 
-}
+}*/
 
 
 #ifdef __cplusplus

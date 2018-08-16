@@ -22,7 +22,7 @@ add_library(jsoncpp STATIC IMPORTED)
 set_target_properties(jsoncpp
   PROPERTIES IMPORTED_LOCATION
   ${CMAKE_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI}/libjsoncpp.a)
-
+#https://blog.csdn.net/lcqlw123/article/details/77944411
 find_library( log-lib
               log )
 
