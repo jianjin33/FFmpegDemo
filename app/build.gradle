@@ -12,10 +12,12 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags "-frtti -fexceptions"
+                arguments '-DANDROID_PLATFORM=android-13',
+                        '-DANDROID_TOOLCHAIN=clang', '-DANDROID_STL=gnustl_static'
             }
         }
         ndk {
-            abiFilters  'armeabi-v7a'
+            abiFilter 'armeabi-v7a'
         }
     }
     buildTypes {
