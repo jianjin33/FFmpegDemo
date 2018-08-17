@@ -17,6 +17,28 @@
 
 #ifndef _Included_com_jianjin33_ffmpeg_Request
 #define _Included_com_jianjin33_ffmpeg_Request
+
+/**
+ * 调用java方法示例
+ * @param str
+ */
+void show(JNIEnv *env, jobject thiz, const char *msg) {
+    // 方法名
+    char *method = "show";
+    // 获取该对象类
+    jclass clazz = env->GetObjectClass(thiz);
+    jobject m_object = (*env).NewGlobalRef(thiz);//创建对象的本地变量
+    // 获取java方法ID
+    jmethodID m_mid = env->GetMethodID(clazz, "show", "(Ljava/lang/String;)V");
+
+//    jfieldID m_fid = env->GetFieldID(clazz, "a", "I");
+//    jint i = 2;
+//    env->SetIntField(m_object, m_fid, i);
+
+    jstring jmsg = env->NewStringUTF(msg);
+    env->CallVoidMethod(m_object, m_mid, jmsg);
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -30,8 +52,12 @@ extern "C" {
 
 using namespace std;
 
+
+
 JNIEXPORT jstring JNICALL Java_com_jianjin33_ffmpeg_Request_requestTest
-        (JNIEnv *env, jobject){
+        (JNIEnv *env, jobject thiz) {
+    const char *msg = "native";
+    show(env, thiz, msg);
     //GET请求
     string url = "http://www.weather.com.cn/data/sk/101280601.html";
     WebTask task;
@@ -57,15 +83,17 @@ JNIEXPORT jstring JNICALL Java_com_jianjin33_ffmpeg_Request_requestTest
             string WD = root["weatherinfo"]["WD"].asString();
             string WS = root["weatherinfo"]["WS"].asString();
             string time = root["weatherinfo"]["time"].asString();
-            string result = "城市：" + city + "\n温度："+ temp+ "\n风向：" + WD + "\n风力："+ WS + "\n时间：" + time;
+            string result =
+                    "城市：" + city + "\n温度：" + temp + "\n风向：" + WD + "\n风力：" + WS + "\n时间：" + time;
             return Str2Jstring(env, result.c_str());
         }
     } else {
         LOG_D("网络连接失败\n");
         return env->NewStringUTF("网络连接失败！");
     }
-
 }
+
+
 
 /*static int32_t onInputEvent(struct android_app *app) {
     int sockClient = socket(AF_INET, SOCK_STREAM, 0);
