@@ -18,26 +18,6 @@
 #ifndef _Included_com_jianjin33_ffmpeg_Request
 #define _Included_com_jianjin33_ffmpeg_Request
 
-/**
- * 调用java方法示例
- * @param str
- */
-void show(JNIEnv *env, jobject thiz, const char *msg) {
-    // 方法名
-    char *method = "show";
-    // 获取该对象类
-    jclass clazz = env->GetObjectClass(thiz);
-    jobject m_object = (*env).NewGlobalRef(thiz);//创建对象的本地变量
-    // 获取java方法ID
-    jmethodID m_mid = env->GetMethodID(clazz, "show", "(Ljava/lang/String;)V");
-
-//    jfieldID m_fid = env->GetFieldID(clazz, "a", "I");
-//    jint i = 2;
-//    env->SetIntField(m_object, m_fid, i);
-
-    jstring jmsg = env->NewStringUTF(msg);
-    env->CallVoidMethod(m_object, m_mid, jmsg);
-}
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,10 +33,30 @@ extern "C" {
 using namespace std;
 
 
+/**
+ * 调用java方法示例
+ * @param str
+ */
+void show(JNIEnv *env, jobject thiz, string msg) {
+    // 获取该对象类
+    jclass clazz = env->GetObjectClass(thiz);
+    jobject m_object = (*env).NewGlobalRef(thiz);//创建对象的本地变量
+    // 获取java方法ID
+    jmethodID m_mid = env->GetMethodID(clazz, "show", "(Ljava/lang/String;)Ljava/lang/String;");
+
+//    jfieldID m_fid = env->GetFieldID(clazz, "a", "I");
+//    jint i = 2;
+//    env->SetIntField(m_object, m_fid, i);
+
+    jstring jmsg = env->NewStringUTF(msg.c_str());
+    jstring jcallback = static_cast<jstring>(env->CallObjectMethod(m_object, m_mid, jmsg));
+    string callback = Jstring2string(env, jcallback);
+    LOG_D("方法返回数据是：%s\n", callback.c_str());
+}
 
 JNIEXPORT jstring JNICALL Java_com_jianjin33_ffmpeg_Request_requestTest
         (JNIEnv *env, jobject thiz) {
-    const char *msg = "native";
+    string msg = "native";
     show(env, thiz, msg);
     //GET请求
     string url = "http://www.weather.com.cn/data/sk/101280601.html";

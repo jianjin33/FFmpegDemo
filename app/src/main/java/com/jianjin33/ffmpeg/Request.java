@@ -17,7 +17,8 @@ public class Request {
 
     public native String requestTest();
 
-    public void show(String msg){
+    public String show(String msg){
         Toast.makeText(ctx,msg+"",Toast.LENGTH_SHORT).show();
+        return "javaTest";
     }
 }
