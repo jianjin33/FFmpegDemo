@@ -45,3 +45,6 @@ SLIB_INSTALL_LINKS='$(SLIBNAME)'
     - 提示y0000000' undeclared 把libavcodec/hevc_mvs.c文件的所有变量B0改成b0，xB0改成xb0，yB0改成yb0;
     - libavcodec/opus_pvq.c中所有变量B0都改成b0;
 2. 合并库时会偶尔抽风，提示一些方法或变量找不到或未定义，多试了一下又过了。
+
+
+> todo:编译的libavcodec.so还有问题，依赖了一些其他的库
