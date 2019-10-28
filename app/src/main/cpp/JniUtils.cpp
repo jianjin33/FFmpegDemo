@@ -1,10 +1,8 @@
-//
-// Created by lexwu on 2017/3/30.
-//
 #include <jni.h>
 #include <string>
+#include <cstring>
 #include "JniUtils.h"
-#include "../../../../../../AppData/Local/Android/Sdk/ndk-bundle/sysroot/usr/include/malloc.h"
+#include "malloc.h"
 
 
 /**
