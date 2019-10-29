@@ -49,4 +49,4 @@ SLIB_INSTALL_LINKS='$(SLIBNAME)'
 2. 合并库时会偶尔抽风，提示一些方法或变量找不到或未定义，多试了一下又过了。
 
 
-> todo:编译的libavcodec.so还有问题，依赖了一些其他的库
+> todo:

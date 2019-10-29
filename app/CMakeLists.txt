@@ -4,13 +4,9 @@ add_library(native-lib
              SHARED
              src/main/cpp/jni_ffmpeg.cpp )
 
-include_directories(
-#         src/main/cpp/include/libavcodec
-         src/main/cpp/include/libavfilter
-         src/main/cpp/include/libavformat
-         src/main/cpp/include/libavutil
-         src/main/cpp/include/libswresample
-         src/main/cpp/include/libswscale )
+# 这里巨坑 之前写成 src/main/cpp/include/libavfilter src/main/cpp/include/libavformat src/main/cpp/include/libavformat...
+# ndk编译会报错不通过，卡在这，其实写一个最外层就行
+include_directories(src/main/cpp/include)
 
 #添加ffmpeg
 add_library(ffmpeg SHARED IMPORTED)

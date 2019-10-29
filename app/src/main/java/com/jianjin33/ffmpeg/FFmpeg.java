@@ -14,10 +14,12 @@ public class FFmpeg {
 
     static {
         System.loadLibrary("native-lib");
-        System.loadLibrary("libffmpeg");
+        System.loadLibrary("ffmpeg");
     }
 
-    public native String init();
+    public native int init();
+
+    public native int open(String path);
 
     public String show(String msg){
         Toast.makeText(ctx,msg+"",Toast.LENGTH_SHORT).show();
