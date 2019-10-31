@@ -7,9 +7,14 @@ export NDK=$HOME/environment/android-ndk-r13
 export SYSROOT=$NDK/platforms/android-21/arch-arm
 export TOOLCHAIN=$NDK/toolchains/arm-linux-androideabi-4.9/prebuilt/darwin-x86_64
 export ADDI_CFLAGS="-marm"
-PREFIX=$(pwd)/android
 
-echo "1"
+# arm v7-a
+CPU=armv7-a
+#PREFIX=./android/$CPU 和下面效果一样
+PREFIX=$(pwd)/android/$CPU
+OPTIMIZE_CFLAGS="-mfloat-abi=softfp -mfpu=vfp -marm -march=$CPU "
+ADDITIONAL_CONFIGURE_FLAG=
+
 function build_one
 {
 ./configure \
@@ -39,8 +44,8 @@ function build_one
 --disable-encoders \
 --disable-muxers \
 --disable-parsers \
---enble-parser=aac \
---enble-parser=h264 \
+--enable-parser=aac \
+--enable-parser=h264 \
 --disable-decoders \
 --enable-decoder=h264 \
 --enable-decoder=aac \
@@ -50,6 +55,7 @@ function build_one
 --disable-ffprobe \
 --disable-avdevice \
 --disable-symver \
+--disable-x86asm \
 --disable-stripping \
 $ADDITIONAL_CONFIGURE_FLAG
 sed -i '' 's/HAVE_LRINT 0/HAVE_LRINT 1/g' config.h
@@ -80,12 +86,5 @@ libswscale/libswscale.a \
 $TOOLCHAIN/lib/gcc/arm-linux-androideabi/4.9.x/libgcc.a \
 
 }
-
-# arm v7-a
-CPU=armv7-a
-OPTIMIZE_CFLAGS="-mfloat-abi=softfp -mfpu=vfp -marm -march=$CPU "
-#PREFIX=./android/$CPU 和下面效果一样
-PREFIX=$(pwd)/android/$CPU
-ADDITIONAL_CONFIGURE_FLAG=
 
 build_one
