@@ -1,5 +1,6 @@
 //
 // Created by 简祖明 on 19/10/28.
+// 测试交叉编译的ffmepg库对视频文件的解码和缩放功能是否正常使用
 //
 #include <jni.h>
 #include <android/log.h>

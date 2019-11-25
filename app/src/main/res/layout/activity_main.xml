@@ -18,4 +18,9 @@
         android:layout_height="wrap_content"
         android:text="open"
         android:onClick="open"/>
+
+    <com.jianjin33.ffmpeg.VideoView
+        android:id="@+id/video_view"
+        android:layout_width="300dp"
+        android:layout_height="200dp" />
 </LinearLayout>
