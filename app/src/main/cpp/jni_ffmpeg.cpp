@@ -68,9 +68,13 @@ void *decode_thread(void *arg) {
         av_packet_unref(packet);
     }
 
+    av_frame_free(&pFrameYUV);
+    av_frame_free(&pFrame);
     avcodec_free_context(&pCodecCtx);
+    avformat_close_input(&pFormatCtx);
 
     //pthread_exit(&p_thread);
+    pthread_detach(pthread_self());
     return (void *) 0;
 }
 
