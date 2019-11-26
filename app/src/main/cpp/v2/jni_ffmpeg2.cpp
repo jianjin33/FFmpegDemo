@@ -2,28 +2,40 @@
 // Created by 简祖明 on 19/10/28.
 // 解码视频文件后，通过android的native_window进行绘制操作
 //
+
+#include "audio_render.h"
+
+#ifndef AUDIO_RENDER_H
 #include <jni.h>
 #include <android/log.h>
-#include <string>
 #include <iostream>
 #include <unistd.h>
-#include "android/native_window.h"
-#include "android/native_window_jni.h"
 
 extern "C"
 {
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
+}
+#define TAG "native_ffmpeg"
+#define LOG_D(...) __android_log_print(ANDROID_LOG_DEBUG,TAG ,__VA_ARGS__)
+
+#endif
+
+
+#include <string>
+#include "android/native_window.h"
+#include "android/native_window_jni.h"
+
+extern "C"
+{
 #include "libavutil/imgutils.h"
 #include "libyuv.h"
 }
 
-#define TAG "native_ffmpeg"
-#define LOG_D(...) __android_log_print(ANDROID_LOG_DEBUG,TAG ,__VA_ARGS__)
 
 using namespace libyuv;
 
-namespace render{
+namespace render {
 
     AVFormatContext *pFormatCtx;
     AVCodecContext *pCodecCtx;
@@ -36,9 +48,9 @@ namespace render{
     ANativeWindow *pNativeWindow;
 
 
-    void *DecodeRenderTask(void *arg) {
+    void *DecodeRenderVideoTask(void *arg) {
         int ret, got_picture;
-        ANativeWindow_Buffer *pNativeWindowBuffer;
+        ANativeWindow_Buffer *pNativeWindowBuffer = new ANativeWindow_Buffer;
         int frame_cnt = 0;
         while (av_read_frame(pFormatCtx, packet) >= 0) {
             if (packet->stream_index == videoIndex) {
@@ -77,7 +89,7 @@ namespace render{
                                pFrameRGB->data[0], pFrameRGB->linesize[0],
                                pCodecCtx->width, pCodecCtx->height);
 
-                    // unlock后会window上绘制缓冲区rgb内容
+                    // unlock后会在window上绘制缓冲区rgb内容
                     ANativeWindow_unlockAndPost(pNativeWindow);
                     usleep(1000 * 16);
 
@@ -89,6 +101,8 @@ namespace render{
             }
             av_packet_unref(packet);
         }
+
+        delete (pNativeWindowBuffer);
         ANativeWindow_release(pNativeWindow);
         av_frame_free(&pFrameYUV);
         av_frame_free(&pFrameRGB);
@@ -99,45 +113,7 @@ namespace render{
     }
 
 
-    extern "C"
-    JNIEXPORT jint JNICALL
-    Java_com_jianjin33_ffmpeg_FFmpeg_render(JNIEnv *env, jobject instance, jstring path_,
-                                            jobject jsurface) {
-
-        avformat_network_init(); // 网络相关
-        pFormatCtx = avformat_alloc_context();    // 注意：程序结束调用 avformat_close_input
-        if (!pFormatCtx) {
-            return -1;
-        }
-
-        LOG_D("native open");
-        const char *input = env->GetStringUTFChars(path_, 0);
-
-        if (avformat_open_input(&pFormatCtx, input, NULL, NULL) != 0) {
-            LOG_D("获取视频文件失败！");
-            return -1;
-        }
-
-        if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
-            LOG_D("获取视频文件信息失败！");
-            return -1;
-        }
-        videoIndex = -1;
-        // nb_streams ：输入视频的AVStream个数
-        // streams ：输入视频的AVStream []数组
-        for (int i = 0; i != pFormatCtx->nb_streams; i++) {
-            if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-                videoIndex = i;
-                break;
-            }
-        }
-
-        if (videoIndex == -1) {
-            LOG_D("文件中没有视频流");
-            return -1;
-        }
-
-
+    int DecodeRenderVideo(JNIEnv *env, jobject jsurface, const char *input) {
         // 获取视频解码器
         AVCodecParameters *codecParameters = pFormatCtx->streams[videoIndex]->codecpar;
         pCodecCtx = avcodec_alloc_context3(NULL);
@@ -177,12 +153,68 @@ namespace render{
         av_dump_format(pFormatCtx, 0, input, 0);
 
 
-        DecodeRenderTask(NULL);
-//        pthread_t p_thread;
-//        pthread_create(&p_thread, NULL, DecodeRenderTask, NULL);
+//        DecodeRenderTask(NULL);
+        pthread_t p_thread;
+        pthread_create(&p_thread, NULL, DecodeRenderVideoTask, NULL);
+        return 0;
+    }
+
+
+    extern "C"
+    JNIEXPORT jint JNICALL
+    Java_com_jianjin33_ffmpeg_FFmpeg_render(JNIEnv *env, jobject instance, jstring path_,
+                                            jobject jsurface) {
+
+        int audioIndex;
+
+        avformat_network_init(); // 网络相关
+        pFormatCtx = avformat_alloc_context();    // 注意：程序结束调用 avformat_close_input
+        if (!pFormatCtx) {
+            return -1;
+        }
+
+        LOG_D("native open");
+        const char *input = env->GetStringUTFChars(path_, 0);
+
+        if (avformat_open_input(&pFormatCtx, input, NULL, NULL) != 0) {
+            LOG_D("获取视频文件失败！");
+            return -1;
+        }
+
+        if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
+            LOG_D("获取视频文件信息失败！");
+            return -1;
+        }
+        videoIndex = -1;
+        // nb_streams ：输入视频的AVStream个数
+        // streams ：输入视频的AVStream []数组
+        for (int i = 0; i != pFormatCtx->nb_streams; i++) {
+            if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+                videoIndex = i;
+            } else if (pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                audioIndex = i;
+            }
+        }
+
+        if (videoIndex == -1) {
+            LOG_D("文件中没有视频流");
+        } else {
+            DecodeRenderVideo(env, jsurface, input);
+        }
+
+        if (audioIndex == -1) {
+            LOG_D("文件中没有音频流");
+        } else {
+            Sound(env, instance, pFormatCtx, audioIndex);
+        }
 
 
         env->ReleaseStringUTFChars(path_, input);
         return 0;
     }
+}
+
+jint JNI_OnLoad(JavaVM *vm, void *reserved) {
+    LOG_D("native registration success\n");
+    return JNI_VERSION_1_6;
 }

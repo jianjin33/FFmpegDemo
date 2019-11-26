@@ -34,20 +34,23 @@ public class MainActivity extends AppCompatActivity {
 
     public void open(View view) {
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                File media = new File(Environment.getExternalStorageDirectory(), "mediaFile.mp4");
-                final String path = media.getPath();
-                Log.d("FFmpegMainActivity", "path:" + path);
+        File media = new File(Environment.getExternalStorageDirectory(), "mediaFile.mp4");
+        final String path = media.getPath();
+        Log.d("FFmpegMainActivity", "path:" + path);
 /*        Intent intent = new Intent(Intent.ACTION_VIEW);
         Uri uri = Uri.fromFile(media);
         intent.setDataAndType(uri, "video/*");
         startActivity(intent);*/
 
-                Surface surface = surfaceView.getHolder().getSurface();
-                int result = fmpeg.render(path, surface);
-                Log.d("FFmpegMainActivity", String.valueOf(result));
+        Surface surface = surfaceView.getHolder().getSurface();
+        int result = fmpeg.render(path, surface);
+        Log.d("FFmpegMainActivity", String.valueOf(result));
+
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
 
 
             }
