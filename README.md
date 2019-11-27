@@ -22,6 +22,10 @@ AAC AC-3 MP3 WMA
 
 AAC:可以将数据压缩10倍以上；
 
+## FFmpeg的编译
+交叉编译的shell脚本可参考doc目录下的build.sh和build-static.sh；
+编译步骤和注意事项参考doc目录下的help-cross-compiling.md文档。
+
 
 
 
