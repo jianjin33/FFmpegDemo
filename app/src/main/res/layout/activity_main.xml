@@ -10,14 +10,14 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="init"
-        android:onClick="click"/>
+        android:text="open"
+        android:onClick="open"/>
 
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="open"
-        android:onClick="open"/>
+        android:text="openv3"
+        android:onClick="openV3"/>
 
     <com.jianjin33.ffmpeg.VideoView
         android:id="@+id/video_view"

@@ -16,6 +16,7 @@ extern "C"
 #include "libavcodec/avcodec.h"
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
+#include "libswresample/swresample.h"
 #include "libyuv.h"
 }
 
@@ -24,10 +25,13 @@ extern "C"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,TAG ,__VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,TAG ,__VA_ARGS__)
 
+#define MAX_AUDIO_FRAME_SIZE 48000 * 4
 // nb_streams:音频流，视频流，字幕
 #define MAX_STREAM 2
 
 struct Player {
+    JavaVM *javaVM;
+
     AVFormatContext *formatCtx;
 
     /**
@@ -49,6 +53,27 @@ struct Player {
      * 原生绘制
      */
     ANativeWindow *nativeWindow;
+
+    SwrContext *swrContext;
+    /**
+     * 输入输出的采样格式
+     */
+    AVSampleFormat inSampleFormat;
+    AVSampleFormat outSampleFormat;
+
+    /**
+     * 输入输出的采样率
+     */
+    int inSampleRate;
+    int outSampleRate;
+
+    /**
+     * 输出的声道个数
+     */
+    int outChannelNb;
+
+    jobject audioTrack;
+    jmethodID audioTrackWriteMid;
 };
 
 
@@ -58,7 +83,8 @@ struct Player {
  * @param path
  * @return
  */
-extern "C" int initAvFromatCtx(struct Player *player, const char *path) {
+
+extern "C" int InitAvFormatCtx(struct Player *player, const char *path) {
 
     avformat_network_init(); // 网络相关
     AVFormatContext *formatCtx = avformat_alloc_context();    // 注意：程序结束调用 avformat_close_input
@@ -99,7 +125,7 @@ extern "C" int initAvFromatCtx(struct Player *player, const char *path) {
  * @param player
  * @param streamIdx
  */
-extern "C" int initCodecCtx(struct Player *player, int streamIdx) {
+extern "C" int InitCodecCtx(struct Player *player, int streamIdx) {
     // 获取音频或视频解码器
     LOGI("init av codec context");
     AVCodecParameters *codecParameters = player->formatCtx->streams[streamIdx]->codecpar;
@@ -137,7 +163,7 @@ extern "C" int initCodecCtx(struct Player *player, int streamIdx) {
 /**
  * 初始化NativeWindow(获取NativeWindow指针的这步操作我尝试放在 AVPacket分配内存 之后会崩溃)
  */
-extern "C" void decodeVideoPrepare(JNIEnv *env, struct Player *player, jobject surface) {
+extern "C" void DecodeVideoPrepare(JNIEnv *env, struct Player *player, jobject surface) {
     player->nativeWindow = ANativeWindow_fromSurface(env, surface);
 }
 
@@ -145,7 +171,7 @@ extern "C" void decodeVideoPrepare(JNIEnv *env, struct Player *player, jobject s
  * 视频解码 渲染
  */
 extern "C" void
-decodeVideo(struct Player *player, AVPacket *packet, ANativeWindow_Buffer *nativeWindowBuffer,
+DecodeVideo(struct Player *player, AVPacket *packet, ANativeWindow_Buffer *nativeWindowBuffer,
             AVFrame *frameYUV, AVFrame *frameRGB) {
 
     AVCodecContext *codecCtx = player->codecCtx[player->videoStreamIndex];
@@ -197,7 +223,7 @@ decodeVideo(struct Player *player, AVPacket *packet, ANativeWindow_Buffer *nativ
 /**
  * 解码子线程函数
  */
-extern "C" void *decodeDataTask(void *arg) {
+extern "C" void *DecodeVideoDataTask(void *arg) {
     struct Player *player = (struct Player *) arg;
     AVFormatContext *formatCtx = player->formatCtx;
     // 编码数据
@@ -213,7 +239,7 @@ extern "C" void *decodeDataTask(void *arg) {
     int frameCount = 0;
     while (av_read_frame(formatCtx, packet) >= 0) {
         if (packet->stream_index == player->videoStreamIndex) {
-            decodeVideo(player, packet, nativeWindowBuffer, frameYUV, frameRGB);
+            DecodeVideo(player, packet, nativeWindowBuffer, frameYUV, frameRGB);
             LOGD("视频解码第%d帧", frameCount++);
         }
         av_packet_unref(packet); // important
@@ -226,26 +252,173 @@ extern "C" void *decodeDataTask(void *arg) {
 }
 
 
+void JNIAudioPrepare(JNIEnv *pEnv, jobject instance, Player *pPlayer) {
+    jclass playerClass = pEnv->GetObjectClass(instance);
+
+    //AudioTrack对象
+    jmethodID createAudioTrackMid = pEnv->GetMethodID(playerClass, "createAudioTrack",
+                                                      "(II)Landroid/media/AudioTrack;");
+    jobject audioTrack = pEnv->CallObjectMethod(instance, createAudioTrackMid,
+                                                pPlayer->outSampleRate, pPlayer->outChannelNb);
+
+    //调用AudioTrack.play方法
+    jclass audioTrackClass = pEnv->GetObjectClass(audioTrack);
+    jmethodID audioTrackPlayMid = pEnv->GetMethodID(audioTrackClass, "play", "()V");
+    pEnv->CallVoidMethod(audioTrack, audioTrackPlayMid);
+
+    //AudioTrack.write
+    jmethodID audioTrackWriteMid = pEnv->GetMethodID(audioTrackClass, "write",
+                                                     "([BII)I");
+    //JNI end
+
+    // 设置为全局引用，否则子线程调用报错
+    pPlayer->audioTrack = pEnv->NewGlobalRef(audioTrack);
+    pPlayer->audioTrackWriteMid = audioTrackWriteMid;
+}
+
+
+/**
+* 音频解码准备
+*/
+void DecodeAudioPrepare(Player *player) {
+    AVCodecContext *codec_ctx = player->codecCtx[player->audioStreamIndex];
+
+    //重采样设置参数-------------start
+    //输入的采样格式
+    enum AVSampleFormat inSampleFormat = codec_ctx->sample_fmt;
+    //输出采样格式16bit PCM
+    enum AVSampleFormat outSampleFormat = AV_SAMPLE_FMT_S16;
+    //输入采样率
+    int inSampleRate = codec_ctx->sample_rate;
+    //输出采样率
+    int outSampleRate = inSampleRate;
+    //获取输入的声道布局
+    //根据声道个数获取默认的声道布局（2个声道，默认立体声stereo）
+    //av_get_default_channel_layout(codecCtx->channels);
+    uint64_t in_ch_layout = codec_ctx->channel_layout;
+    //输出的声道布局（立体声）
+    uint64_t out_ch_layout = AV_CH_LAYOUT_STEREO;
+
+    //frame->16bit 44100 PCM 统一音频采样格式与采样率
+    SwrContext *swrContext = swr_alloc();
+    swr_alloc_set_opts(swrContext,
+                       out_ch_layout, outSampleFormat, outSampleRate,
+                       in_ch_layout, inSampleFormat, inSampleRate,
+                       0, NULL);
+    swr_init(swrContext);
+
+    //输出的声道个数
+    int outChannelNb = av_get_channel_layout_nb_channels(out_ch_layout);
+
+    //重采样设置参数-------------end
+
+    player->inSampleFormat = inSampleFormat;
+    player->outSampleFormat = outSampleFormat;
+    player->inSampleRate = inSampleRate;
+    player->outSampleRate = outSampleRate;
+    player->outChannelNb = outChannelNb;
+    player->swrContext = swrContext;
+
+}
+
+void DecodeAudio(JNIEnv *env, Player *player, AVPacket *packet) {
+
+    AVCodecContext *codecContext = player->codecCtx[player->audioStreamIndex];
+    // 解压缩数据
+    AVFrame *frame = av_frame_alloc();
+
+    int ret = avcodec_send_packet(codecContext, packet);
+    int gotFrame = avcodec_receive_frame(codecContext, frame);
+
+    if (ret != 0) {
+        LOGE("解码出错");
+        return;
+    }
+
+    //16bit 44100 PCM 数据（重采样缓冲区）
+    uint8_t *outBuffer = (uint8_t *) av_malloc(MAX_AUDIO_FRAME_SIZE);
+
+    if (gotFrame == 0) {
+        swr_convert(player->swrContext, &outBuffer, MAX_AUDIO_FRAME_SIZE,
+                    (const uint8_t **) (frame->data), frame->nb_samples);
+
+
+        int outBufferSize = av_samples_get_buffer_size(NULL, player->outChannelNb,
+                                                       frame->nb_samples, player->outSampleFormat,
+                                                       1);
+
+        jbyteArray audioSampleArray = env->NewByteArray(outBufferSize);
+        jbyte *sampleByte = env->GetByteArrayElements(audioSampleArray, NULL);
+        memcpy(sampleByte, outBuffer, outBufferSize);
+
+        // 非常重要的一步  没这步 无数据  同步
+        env->ReleaseByteArrayElements(audioSampleArray, sampleByte, 0);
+
+        env->CallIntMethod(player->audioTrack, player->audioTrackWriteMid, audioSampleArray, 0,
+                           outBufferSize);
+        env->DeleteLocalRef(audioSampleArray);
+
+        usleep(1000 * 16);
+
+    }
+    av_frame_free(&frame);
+}
+
+
+/**
+ * 解码子线程函数
+ */
+void *DecodeAudioDataTask(void *arg) {
+    struct Player *player = static_cast<Player *>(arg);
+
+    AVFormatContext *formatContext = player->formatCtx;
+    AVPacket *packet = static_cast<AVPacket *>(av_malloc(sizeof(AVPacket)));
+
+    //关联当前线程的JNIEnv
+    JavaVM *javaVM = player->javaVM;
+    JNIEnv *env;
+    javaVM->AttachCurrentThread(&env, NULL);
+    int frameCount = 0;
+    while (av_read_frame(formatContext, packet) >= 0) {
+        if (packet->stream_index == player->audioStreamIndex) {
+            DecodeAudio(env, player, packet);
+            LOGD("audio解码第%d帧", frameCount++);
+        }
+        av_packet_unref(packet);
+    }
+    javaVM->DetachCurrentThread();
+
+    return (void *) 0;
+}
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_com_jianjin33_ffmpeg_v3_FFmpeg_render(JNIEnv *env, jobject instance, jstring path_,
-                                           jobject surface) {
+Java_com_jianjin33_ffmpeg_v3_FFmpeg3_render(JNIEnv *env, jobject instance, jstring path_,
+                                            jobject surface) {
     const char *path = env->GetStringUTFChars(path_, NULL);
-    struct Player *player = (struct Player *) malloc(sizeof(struct Player));
+    Player *player = (Player *) malloc(sizeof(Player));
 
-    //初始化封装格式上下文
-    initAvFromatCtx(player, path);
+    JavaVM *javaVM;
+    env->GetJavaVM(&javaVM);
+    player->javaVM = javaVM;
+
+    // 初始化封装格式上下文
+    InitAvFormatCtx(player, path);
     int videoStreamIndex = player->videoStreamIndex;
     int audioStreamIndex = player->audioStreamIndex;
-    //获取音视频解码器，并打开
-    initCodecCtx(player, videoStreamIndex);
-    initCodecCtx(player, audioStreamIndex);
+    // 获取音视频解码器，并打开
+    InitCodecCtx(player, videoStreamIndex);
+    InitCodecCtx(player, audioStreamIndex);
 
-    decodeVideoPrepare(env, player, surface);
+    DecodeVideoPrepare(env, player, surface);
+    DecodeAudioPrepare(player);
 
     // 创建子线程解码
-    pthread_create(&(player->decodeThreads[videoStreamIndex]), NULL, decodeDataTask,
+    pthread_create(&(player->decodeThreads[videoStreamIndex]), NULL, DecodeVideoDataTask,
+                   (void *) player);
+
+    JNIAudioPrepare(env, instance, player);
+    pthread_create(&(player->decodeThreads[audioStreamIndex]), NULL, DecodeAudioDataTask,
                    (void *) player);
     return 0;
 }

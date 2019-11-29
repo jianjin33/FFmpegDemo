@@ -7,12 +7,12 @@ import android.media.AudioTrack;
 import android.view.Surface;
 import android.widget.Toast;
 
-public class FFmpeg {
+public class FFmpeg3 {
 
 
     private Context ctx;
 
-    public FFmpeg(Context ctx) {
+    public FFmpeg3(Context ctx) {
         this.ctx = ctx;
     }
 
@@ -22,16 +22,7 @@ public class FFmpeg {
         System.loadLibrary("yuv");
     }
 
-    //public native int init();
-
-    //public native int open(String path);
-
     public native int render(String path, Surface surface);
-
-    public String show(String msg) {
-        Toast.makeText(ctx, msg + "", Toast.LENGTH_SHORT).show();
-        return "javaTest";
-    }
 
     public AudioTrack createAudioTrack(int rateInHz, int nbChannels) {
         int audioFormat = AudioFormat.ENCODING_PCM_16BIT;

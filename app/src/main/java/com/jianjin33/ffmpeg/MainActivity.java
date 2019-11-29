@@ -1,8 +1,5 @@
 package com.jianjin33.ffmpeg;
 
-import android.content.Intent;
-import android.media.MediaPlayer;
-import android.net.Uri;
 import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -12,24 +9,23 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Toast;
 
+import com.jianjin33.ffmpeg.v3.FFmpeg3;
+
 import java.io.File;
 
 public class MainActivity extends AppCompatActivity {
 
-    private FFmpeg fmpeg;
+    private FFmpeg ffmpeg;
+    private FFmpeg3 ffmpeg3;
     private SurfaceView surfaceView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        fmpeg = new FFmpeg(this);
+        ffmpeg = new FFmpeg(this);
+        ffmpeg3 = new FFmpeg3(this);
         surfaceView = findViewById(R.id.video_view);
-    }
-
-    public void click(View view) {
-        //int result = fmpeg.init();
-        //Log.d("FFmpegMainActivity", String.valueOf(result));
     }
 
     public void open(View view) {
@@ -43,19 +39,17 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);*/
 
         Surface surface = surfaceView.getHolder().getSurface();
-        int result = fmpeg.render(path, surface);
+        int result = ffmpeg.render(path, surface);
         Log.d("FFmpegMainActivity", String.valueOf(result));
 
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
+    }
 
 
-
-            }
-        }).start();
-
+    public void openV3(View view) {
+        File media = new File(Environment.getExternalStorageDirectory(), "mediaFile.mp4");
+        final String path = media.getPath();
+        Surface surface = surfaceView.getHolder().getSurface();
+        int result = ffmpeg3.render(path, surface);
     }
 
     public void show(int msg) {

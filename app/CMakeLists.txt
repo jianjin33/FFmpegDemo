@@ -27,11 +27,17 @@ set_target_properties(libyuv
 find_library(log-lib
         log)
 
+# 使用AndroidWindow
 find_library(android
         android)
+
+# 使用OpenSLES库
+find_library(OpenSLES
+        OpenSLES)
 
 target_link_libraries(native-lib
         ffmpeg
         libyuv
         ${log-lib}
+        ${OpenSLES}
         ${android})
