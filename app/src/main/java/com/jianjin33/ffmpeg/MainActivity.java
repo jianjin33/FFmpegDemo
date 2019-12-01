@@ -45,6 +45,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    public void openV21(View view) {
+        File media = new File(Environment.getExternalStorageDirectory(), "mediaFile.mp4");
+        final String path = media.getPath();
+        Surface surface = surfaceView.getHolder().getSurface();
+//        int result = ffmpeg.renderV21(path, surface);
+    }
+
     public void openV3(View view) {
         File media = new File(Environment.getExternalStorageDirectory(), "mediaFile.mp4");
         final String path = media.getPath();

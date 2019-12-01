@@ -16,8 +16,14 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="openv3"
-        android:onClick="openV3"/>
+        android:text="openv21"
+        android:onClick="openV21"/>
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="openV3"
+        android:text="openv3" />
 
     <com.jianjin33.ffmpeg.VideoView
         android:id="@+id/video_view"

@@ -5,7 +5,9 @@ add_library(native-lib
         src/main/cpp/v2/audio_render.cpp
         src/main/cpp/v1/jni_ffmpeg.cpp
         src/main/cpp/v2/jni_ffmpeg2.cpp
-        src/main/cpp/v3/jni_ffmpeg3.cpp)
+#        src/main/cpp/v2/jni_ffmpeg2_1.cpp
+        src/main/cpp/v3/jni_ffmpeg3.cpp
+        src/main/cpp/v3/queue.cpp)
 
 # 这里巨坑 之前写成 src/main/cpp/include/libavfilter src/main/cpp/include/libavformat src/main/cpp/include/libavformat...
 # ndk编译会报错不通过，卡在这，其实写一个最外层就行

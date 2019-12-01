@@ -28,6 +28,8 @@ public class FFmpeg {
 
     public native int render(String path, Surface surface);
 
+//    public native int renderV21(String path, Surface surface);
+
     public String show(String msg) {
         Toast.makeText(ctx, msg + "", Toast.LENGTH_SHORT).show();
         return "javaTest";
