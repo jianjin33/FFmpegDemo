@@ -10,6 +10,8 @@ struct Queue;
 //释放队列中元素所占用的内存
 typedef void *(*QueueFreeFunc)(void *elem);
 
+typedef void *(*QueueAllocFunc)();
+
 
 class BufferQueue {
 
@@ -17,12 +19,12 @@ public:
     /**
      * 初始化队列
      */
-    Queue *QueueInit(int size);
+    Queue *QueueInit(int size, QueueAllocFunc func);
 
     /**
      * 销毁队列
      */
-    void QueueFree(Queue *queue);
+    void QueueFree(Queue *queue, QueueFreeFunc func);
 
     /**
      * 获取下一个索引位置
@@ -32,12 +34,12 @@ public:
     /**
      * 队列压人元素
      */
-    void *QueuePush(Queue *queue);
+    void *QueuePush(Queue *queue, pthread_mutex_t* mutex, pthread_cond_t* cond);
 
     /**
      * 弹出元素
      */
-    void *QueuePop(Queue *queue);
+    void *QueuePop(Queue *queue, pthread_mutex_t* mutex, pthread_cond_t* cond);
 
 };
 
