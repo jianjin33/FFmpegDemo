@@ -1,0 +1,5 @@
+YUV Player Deluxe	yuv文件播放
+Adobe Audition 3.0	音频文件编辑
+MediaInfo	音视频文件详细信息查看工具
+relyze	二进制文件查看
+UltraEdit	二进制文件查看
